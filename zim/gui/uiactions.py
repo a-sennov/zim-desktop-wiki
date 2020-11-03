@@ -14,11 +14,12 @@ import zim
 from zim.actions import action
 
 from zim.main import ZIM_APPLICATION
+from zim.fs import File, Dir, SEP
 
 from zim.parsing import url_encode, URL_ENCODE_DATA
 from zim.templates import list_templates, get_template
 
-from zim.config import data_file, ConfigManager
+from zim.config import data_file, ConfigManager, Boolean
 from zim.notebook import Path, PageExistsError, NotebookOperation
 from zim.notebook.index import IndexNotFoundError, LINK_DIR_BACKWARD
 
@@ -472,6 +473,8 @@ class NewPageDialog(Dialog):
 		self.notebook = notebook
 		self.navigation = navigation
 
+		self.uistate.define(create_attachments=Boolean(False))
+
 		default = notebook.get_page_template_name(path)
 		templates = [t[0] for t in list_templates('wiki')]
 		if not default in templates:
@@ -479,11 +482,13 @@ class NewPageDialog(Dialog):
 
 		self.add_form([
 			('page', 'page', _('Page Name'), path), # T: Input label
-			('template', 'choice', _('Page Template'), templates) # T: Choice label
+			('template', 'choice', _('Page Template'), templates), # T: Choice label
+			('attachments', 'bool', _('Create directory for attachments')), # T: Attachment checkbox
 		])
 		self.form['template'] = default
 		# TODO: reset default when page input changed -
 		# especially if namespace has other template
+		self.form['attachments'] = self.uistate['create_attachments']
 
 		self.form.set_default_activate('page') # close dialog on <Enter> immediatly, do not select template
 
@@ -507,6 +512,10 @@ class NewPageDialog(Dialog):
 		pageview = self.navigation.open_page(page)
 		if pageview is not None:
 			pageview.set_cursor_pos(-1) # HACK set position to end of template
+
+		if self.form['attachments']:
+			self.notebook.get_attachments_dir(path).touch()
+		self.uistate['create_attachments'] = self.form['attachments']
 		return True
 
 
